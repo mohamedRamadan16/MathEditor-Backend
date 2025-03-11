@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35728.132 d17.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MathEditor.API", "MathEditor\MathEditor.API.csproj", "{FC810D2A-CCF4-4E19-B28F-7B8F586333DB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MathEditor.Application", "MathEditor.Application\MathEditor.Application.csproj", "{3B45112F-43B8-4285-8154-E788976B52AE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MathEditor.Domain", "MathEditor.Domain\MathEditor.Domain.csproj", "{6C9DB5AF-3D7B-42B7-8606-2562C9969742}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MathEditor.Infrastructure", "MathEditor.Infrastructure\MathEditor.Infrastructure.csproj", "{344173EA-94ED-474F-908C-B992AD4B92D7}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{FC810D2A-CCF4-4E19-B28F-7B8F586333DB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC810D2A-CCF4-4E19-B28F-7B8F586333DB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC810D2A-CCF4-4E19-B28F-7B8F586333DB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC810D2A-CCF4-4E19-B28F-7B8F586333DB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3B45112F-43B8-4285-8154-E788976B52AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3B45112F-43B8-4285-8154-E788976B52AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3B45112F-43B8-4285-8154-E788976B52AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3B45112F-43B8-4285-8154-E788976B52AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6C9DB5AF-3D7B-42B7-8606-2562C9969742}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6C9DB5AF-3D7B-42B7-8606-2562C9969742}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6C9DB5AF-3D7B-42B7-8606-2562C9969742}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6C9DB5AF-3D7B-42B7-8606-2562C9969742}.Release|Any CPU.Build.0 = Release|Any CPU
+		{344173EA-94ED-474F-908C-B992AD4B92D7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{344173EA-94ED-474F-908C-B992AD4B92D7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{344173EA-94ED-474F-908C-B992AD4B92D7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{344173EA-94ED-474F-908C-B992AD4B92D7}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
