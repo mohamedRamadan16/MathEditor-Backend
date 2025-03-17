@@ -1,4 +1,7 @@
 
+using MathEditor.API.Extensions;
+using MathEditor.Infrastructure.Extensions;
+using MathEditor.Infrastructure.Seeders;
 using Serilog;
 
 namespace MathEditor
@@ -10,11 +13,17 @@ namespace MathEditor
             var builder = WebApplication.CreateBuilder(args);
 
 
-            builder.Services.AddControllers();
-            builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen();
+            // Add services to the container.
+            builder.AddPresentation();
+            builder.Services.AddInfrastructure(builder.Configuration); // for sql server connection
+            //builder.Services.AddApplication();
 
             var app = builder.Build();
+
+            /// seeding when start the application
+            var scope = app.Services.CreateScope();
+            var seeder = scope.ServiceProvider.GetRequiredService<IMathEditorSeeder>();
+            seeder.Seed();
 
 
             app.UseSerilogRequestLogging();
