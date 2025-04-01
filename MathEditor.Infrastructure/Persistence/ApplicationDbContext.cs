@@ -19,7 +19,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
         // Composite Key for DocumentCoauthors
         modelBuilder.Entity<DocumentCoauthor>()
-            .HasKey(dc => new { dc.DocumentId, dc.UserEmail });
+            .HasKey(dc => new { dc.DocumentId, dc.UserId });
 
         // Document -> Author (Cascade Delete)
         modelBuilder.Entity<Document>()
@@ -48,6 +48,20 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .WithMany(u => u.Revisions)
             .HasForeignKey(r => r.AuthorId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // DocumentCoauthor -> Document (Cascade Delete)
+        modelBuilder.Entity<DocumentCoauthor>()
+            .HasOne(dc => dc.Document)
+            .WithMany(d => d.Coauthors)
+            .HasForeignKey(dc => dc.DocumentId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // DocumentCoauthor -> User (NO Cascade Delete to avoid multiple paths)
+        modelBuilder.Entity<DocumentCoauthor>()
+            .HasOne(dc => dc.User)
+            .WithMany(u => u.CoauthoredDocuments)
+            .HasForeignKey(dc => dc.UserId)
+            .OnDelete(DeleteBehavior.NoAction); // Changed from Cascade to NoAction
     }
 
 }
