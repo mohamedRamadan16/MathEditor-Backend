@@ -1,5 +1,7 @@
 
 using MathEditor.API.Extensions;
+using MathEditor.Application.Extensions;
+using MathEditor.Domain.Entities;
 using MathEditor.Infrastructure.Extensions;
 using MathEditor.Infrastructure.Seeders;
 using Serilog;
@@ -16,7 +18,10 @@ namespace MathEditor
             // Add services to the container.
             builder.AddPresentation();
             builder.Services.AddInfrastructure(builder.Configuration); // for sql server connection
+            builder.Services.AddApplication();
             //builder.Services.AddApplication();
+
+            builder.Services.AddHttpContextAccessor();
 
             var app = builder.Build();
 
@@ -32,15 +37,20 @@ namespace MathEditor
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
-                app.UseSwaggerUI();
+                app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "MathEditor API v1"));
             }
 
             app.UseHttpsRedirection();
 
+            app.UseCors("AllowAll");
+
+            app.UseAuthentication(); // Handles cookie auth from AddIdentityApiEndpoint
+
             app.UseAuthorization();
 
-
             app.MapControllers();
+
+            app.MapIdentityApi<ApplicationUser>();
 
             app.Run();
         }

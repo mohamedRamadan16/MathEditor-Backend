@@ -9,12 +9,15 @@ namespace MathEditor.API.Extensions
         {
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
+
             builder.Services.AddSwaggerGen(c =>
             {
+                c.SwaggerDoc("v1", new OpenApiInfo { Title = "MathEditor API", Version = "v1" });
                 c.AddSecurityDefinition("bearerAuth", new OpenApiSecurityScheme
                 {
                     Type = SecuritySchemeType.Http,
-                    Scheme = "Bearer"
+                    Scheme = "Bearer",
+                    Description = "JWT Authorization header using the Bearer scheme."
                 });
 
                 c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -22,12 +25,20 @@ namespace MathEditor.API.Extensions
                     {
                         new OpenApiSecurityScheme
                         {
-                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "bearerAuth"}
+                            Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "bearerAuth" }
                         },
-
-                        []
+                        new string[] { } // Empty array is valid if no scopes are defined
                     }
+                });
+            });
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy.AllowAnyOrigin()
+                          .AllowAnyMethod()
+                          .AllowAnyHeader();
                 });
             });
 

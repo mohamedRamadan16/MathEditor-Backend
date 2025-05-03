@@ -1,12 +1,13 @@
 ﻿
 using MathEditor.Domain.Constants;
+using MathEditor.Domain.Entities;
 using MathEditor.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace MathEditor.Infrastructure.Seeders;
 
-public class MathEditorSeeder(ApplicationDbContext _dbContext) : IMathEditorSeeder
+public class MathEditorSeeder(ApplicationDbContext _dbContext, UserManager<ApplicationUser> _userManager) : IMathEditorSeeder
 {
     public async Task Seed()
     {
@@ -21,6 +22,25 @@ public class MathEditorSeeder(ApplicationDbContext _dbContext) : IMathEditorSeed
                 var roles = GetRoles();
                 await _dbContext.Roles.AddRangeAsync(roles);
                 await _dbContext.SaveChangesAsync();
+            }
+
+            if (!await _dbContext.Users.AnyAsync())
+            {
+                var adminUser = new ApplicationUser
+                {
+                    UserName = "admin",
+                    Email = "admin@matheditor.com",
+                    Handle = "admin",
+                    Name = "Administrator",
+                    Role = "admin",
+                    EmailConfirmed = true
+                };
+
+                var result = await _userManager.CreateAsync(adminUser, "Admin@123");
+                if (!result.Succeeded)
+                {
+                    throw new Exception($"Failed to seed admin user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+                }
             }
         }
     }

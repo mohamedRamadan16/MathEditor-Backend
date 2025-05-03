@@ -37,6 +37,17 @@ public class UserRepository : IUserRepository
             .FirstOrDefaultAsync(u => u.Handle != null && u.Handle.ToLower() == handle.ToLower());
     }
 
+
+    public async Task<ApplicationUser?> FindUserByIdAsync(string userId)
+    {
+        if (string.IsNullOrEmpty(userId))
+        {
+            throw new ArgumentNullException(nameof(userId), "User ID must not be null or empty.");
+        }
+
+        return await _userManager.FindByIdAsync(userId);
+    }
+
     public async Task<ApplicationUser?> FindUserByEmailAsync(string email)
     {
         if (string.IsNullOrEmpty(email))
@@ -138,4 +149,5 @@ public class UserRepository : IUserRepository
 
         return true;
     }
+
 }
