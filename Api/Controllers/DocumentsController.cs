@@ -150,7 +150,6 @@ namespace Api.Controllers
                 }
                 _db.Documents.Add(doc);
                 await _db.SaveChangesAsync();
-                // Reload with navigation properties
                 var created = await _db.Documents
                     .Include(d => d.Author)
                     .Include(d => d.Revisions).ThenInclude(r => r.Author)
@@ -288,6 +287,63 @@ namespace Api.Controllers
                     errorMessage += " | Inner: " + ex.InnerException.Message;
                 return StatusCode(500, new ApiResponse<object>(null, false, $"Error: {errorMessage}"));
             }
+        }
+
+        [HttpPost("{id}/coauthors")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> AddCoauthor(Guid id, [FromBody] string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new ApiResponse<object>(null, false, "Email is required."));
+            var emailValidator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+            if (!emailValidator.IsValid(email))
+                return BadRequest(new ApiResponse<object>(null, false, "Invalid email address."));
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
+            var doc = await _db.Documents.Include(d => d.Coauthors).FirstOrDefaultAsync(d => d.Id == id);
+            if (doc == null)
+                return NotFound(new ApiResponse<object>(null, false, "Document not found"));
+            if (doc.AuthorId != userId)
+                return Forbid();
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            if (doc.Coauthors.Any(ca => ca.UserEmail != null && ca.UserEmail.ToLower() == normalizedEmail))
+                return BadRequest(new ApiResponse<object>(null, false, "Coauthor already exists."));
+            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
+            if (user == null)
+            {
+                user = new User { Id = Guid.NewGuid(), Email = normalizedEmail, Name = normalizedEmail.Split('@')[0], CreatedAt = DateTime.UtcNow };
+                _db.Users.Add(user);
+            }
+            doc.Coauthors.Add(new DocumentCoauthor { DocumentId = doc.Id, UserEmail = normalizedEmail, User = user, CreatedAt = DateTime.UtcNow });
+            await _db.SaveChangesAsync();
+            return Ok(new ApiResponse<object>(new { coauthor = normalizedEmail }, true, "Coauthor added."));
+        }
+
+        [HttpDelete("{id}/coauthors")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> RemoveCoauthor(Guid id, [FromBody] string email)
+        {
+            if (string.IsNullOrWhiteSpace(email))
+                return BadRequest(new ApiResponse<object>(null, false, "Email is required."));
+            var emailValidator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+            if (!emailValidator.IsValid(email))
+                return BadRequest(new ApiResponse<object>(null, false, "Invalid email address."));
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
+            var doc = await _db.Documents.Include(d => d.Coauthors).FirstOrDefaultAsync(d => d.Id == id);
+            if (doc == null)
+                return NotFound(new ApiResponse<object>(null, false, "Document not found"));
+            if (doc.AuthorId != userId)
+                return Forbid();
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+            var coauthor = doc.Coauthors.FirstOrDefault(ca => ca.UserEmail != null && ca.UserEmail.ToLower() == normalizedEmail);
+            if (coauthor == null)
+                return NotFound(new ApiResponse<object>(null, false, "Coauthor not found."));
+            doc.Coauthors.Remove(coauthor);
+            await _db.SaveChangesAsync();
+            return Ok(new ApiResponse<object>(new { coauthor = normalizedEmail }, true, "Coauthor removed."));
         }
 
         private static DocumentResponseDto MapToDto(Document doc)
