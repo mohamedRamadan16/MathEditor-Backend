@@ -311,10 +311,7 @@ namespace Api.Controllers
                 return BadRequest(new ApiResponse<object>(null, false, "Coauthor already exists."));
             var user = await _db.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
             if (user == null)
-            {
-                user = new User { Id = Guid.NewGuid(), Email = normalizedEmail, Name = normalizedEmail.Split('@')[0], CreatedAt = DateTime.UtcNow };
-                _db.Users.Add(user);
-            }
+                return BadRequest(new ApiResponse<object>(null, false, "User with this email does not exist. Only registered users can be added as coauthors."));
             doc.Coauthors.Add(new DocumentCoauthor { DocumentId = doc.Id, UserEmail = normalizedEmail, User = user, CreatedAt = DateTime.UtcNow });
             await _db.SaveChangesAsync();
             return Ok(new ApiResponse<object>(new { coauthor = normalizedEmail }, true, "Coauthor added."));
