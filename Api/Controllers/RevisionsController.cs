@@ -118,8 +118,7 @@ namespace Api.Controllers
                     AuthorId = user.Id
                 };
                 var created = await _mediator.Send(new CreateRevisionCommand(rev));
-                // Update document head to new revision
-                await _mediator.Send(new UpdateDocumentHeadCommand(dto.DocumentId, created.Id));
+                await _mediator.Send(new UpdateDocumentHeadCommand(dto.DocumentId, created.Id, user.Id, user.Email ?? string.Empty));
                 // Reload the revision with Author navigation property populated
                 var createdWithAuthor = await _mediator.Send(new GetRevisionByIdQuery(created.Id));
                 return Ok(new ApiResponse<RevisionResponseDto>(MapToDto(createdWithAuthor)));
