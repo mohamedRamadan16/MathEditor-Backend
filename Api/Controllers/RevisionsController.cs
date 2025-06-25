@@ -9,6 +9,7 @@ using RevisionResponseDto = Api.Application.Revisions.DTOs.RevisionResponseDto;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using Api.Application.Documents.Queries;
+using Api.Application.Documents.Commands;
 
 namespace Api.Controllers
 {
@@ -117,6 +118,8 @@ namespace Api.Controllers
                     AuthorId = user.Id
                 };
                 var created = await _mediator.Send(new CreateRevisionCommand(rev));
+                // Update document head to new revision
+                await _mediator.Send(new UpdateDocumentHeadCommand(dto.DocumentId, created.Id));
                 // Reload the revision with Author navigation property populated
                 var createdWithAuthor = await _mediator.Send(new GetRevisionByIdQuery(created.Id));
                 return Ok(new ApiResponse<RevisionResponseDto>(MapToDto(createdWithAuthor)));
