@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Api.Application.Common.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.ComponentModel.DataAnnotations;
 
 namespace Api.Controllers
 {
@@ -140,13 +141,15 @@ namespace Api.Controllers
                     doc.Coauthors = new List<DocumentCoauthor>();
                     foreach (var email in dto.Coauthors)
                     {
-                        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == email);
+                        if (string.IsNullOrWhiteSpace(email))
+                            return BadRequest(new ApiResponse<DocumentResponseDto>(null, false, $"Coauthor email is required."));
+                        var emailValidator = new EmailAddressAttribute();
+                        if (!emailValidator.IsValid(email))
+                            return BadRequest(new ApiResponse<DocumentResponseDto>(null, false, $"Invalid coauthor email: {email}"));
+                        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == email.Trim().ToLowerInvariant());
                         if (user == null)
-                        {
-                            user = new User { Id = Guid.NewGuid(), Email = email, Name = email.Split('@')[0], CreatedAt = DateTime.UtcNow };
-                            _db.Users.Add(user);
-                        }
-                        doc.Coauthors.Add(new DocumentCoauthor { DocumentId = doc.Id, UserEmail = email, User = user, CreatedAt = DateTime.UtcNow });
+                            return BadRequest(new ApiResponse<DocumentResponseDto>(null, false, $"User with email {email} does not exist. Only registered users can be added as coauthors."));
+                        doc.Coauthors.Add(new DocumentCoauthor { DocumentId = doc.Id, UserEmail = email.Trim().ToLowerInvariant(), User = user, CreatedAt = DateTime.UtcNow });
                     }
                 }
                 // Add initial revision
