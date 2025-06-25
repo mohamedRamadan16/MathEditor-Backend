@@ -28,25 +28,40 @@ namespace Api.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<ApiResponse<IEnumerable<DocumentResponseDto>>>> GetAll()
+        public async Task<ActionResult<ApiResponse<object>>> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try
             {
-                var docs = await _db.Documents
+                if (page < 1) page = 1;
+                if (pageSize < 1) pageSize = 10;
+                var query = _db.Documents
                     .Include(d => d.Author)
                     .Include(d => d.Revisions).ThenInclude(r => r.Author)
                     .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
-                    .Where(d => d.Published)
+                    .Where(d => d.Published);
+                var totalCount = await query.CountAsync();
+                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
+                var docs = await query
+                    .OrderByDescending(d => d.UpdatedAt)
+                    .Skip((page - 1) * pageSize)
+                    .Take(pageSize)
                     .ToListAsync();
                 var result = docs.Select(MapToDto).ToList();
-                return Ok(new ApiResponse<IEnumerable<DocumentResponseDto>>(result));
+                var response = new {
+                    items = result,
+                    page,
+                    pageSize,
+                    totalCount,
+                    totalPages
+                };
+                return Ok(new ApiResponse<object>(response));
             }
             catch (Exception ex)
             {
                 var errorMessage = ex.Message;
                 if (ex.InnerException != null)
                     errorMessage += " | Inner: " + ex.InnerException.Message;
-                return StatusCode(500, new ApiResponse<IEnumerable<DocumentResponseDto>>(null, false, $"Error: {errorMessage}"));
+                return StatusCode(500, new ApiResponse<object>(null, false, $"Error: {errorMessage}"));
             }
         }
 
@@ -251,6 +266,8 @@ namespace Api.Controllers
                     .Include(d => d.Revisions).ThenInclude(r => r.Author)
                     .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
                     .FirstOrDefaultAsync(d => d.Id == doc.Id);
+                if (updated == null)
+                    return StatusCode(500, new ApiResponse<DocumentResponseDto>(null, false, "Document update failed."));
                 return Ok(new ApiResponse<DocumentResponseDto>(MapToDto(updated)));
             }
             catch (Exception ex)
