@@ -12,6 +12,7 @@ using Api.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Api.Application.Common.DTOs;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace Api.Controllers
 {
@@ -358,6 +359,38 @@ namespace Api.Controllers
             doc.Coauthors.Remove(coauthor);
             await _db.SaveChangesAsync();
             return Ok(new ApiResponse<object>(new { coauthor = normalizedEmail }, true, "Coauthor removed."));
+        }
+
+        [HttpPut("{id}/head")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> UpdateHead(Guid id, [FromBody] Guid newHeadId)
+        {
+            try
+            {
+                if (newHeadId == Guid.Empty)
+                    return BadRequest(new ApiResponse<object>(null, false, "Invalid revision ID."));
+                var userId = GetCurrentUserId();
+                if (userId == null)
+                    return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
+                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
+                var result = await _mediator.Send(new UpdateDocumentHeadCommand(id, newHeadId, userId.Value, userEmail));
+                if (!result.Success)
+                {
+                    if (result.StatusCode == 403)
+                        return Forbid();
+                    if (result.StatusCode == 404)
+                        return NotFound(new ApiResponse<object>(null, false, result.Message));
+                    return BadRequest(new ApiResponse<object>(null, false, result.Message));
+                }
+                return Ok(new ApiResponse<object>(new { documentId = id, head = newHeadId }, true, "Document head updated."));
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                    errorMessage += " | Inner: " + ex.InnerException.Message;
+                return StatusCode(500, new ApiResponse<object>(null, false, $"Error: {errorMessage}"));
+            }
         }
 
         private static DocumentResponseDto MapToDto(Document doc)
