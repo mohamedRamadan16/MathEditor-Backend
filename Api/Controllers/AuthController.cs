@@ -1,14 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
-using System.Threading.Tasks;
 using Api.Domain.Entities;
-using Api.Infrastructure.Repositories;
-using System.Linq;
-using Api.Application.Common.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using Microsoft.Extensions.Configuration;
 using Microsoft.AspNetCore.Identity;
 
 namespace Api.Controllers

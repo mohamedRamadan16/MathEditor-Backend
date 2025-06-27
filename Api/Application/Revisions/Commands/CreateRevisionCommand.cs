@@ -1,22 +1,24 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Api.Domain.Entities;
+using Api.Application.Revisions.DTOs;
 using MediatR;
 using Api.Application.Common.Interfaces;
 
 namespace Api.Application.Revisions.Commands
 {
-    public class CreateRevisionCommand : IRequest<Revision>
+    public class CreateRevisionCommand : IRequest<RevisionResponseDto?>
     {
-        public Revision Revision { get; }
-        public CreateRevisionCommand(Revision revision) => Revision = revision;
-    }
-
-    public class CreateRevisionCommandHandler : IRequestHandler<CreateRevisionCommand, Revision>
-    {
-        private readonly IRevisionRepository _repo;
-        public CreateRevisionCommandHandler(IRevisionRepository repo) => _repo = repo;
-        public async Task<Revision> Handle(CreateRevisionCommand request, CancellationToken cancellationToken)
-            => await _repo.CreateAsync(request.Revision);
+        public CreateRevisionDto Dto { get; }
+        public Guid UserId { get; }
+        public string? UserEmail { get; }
+        public string? UserName { get; }
+        public CreateRevisionCommand(CreateRevisionDto dto, Guid userId, string? userEmail, string? userName)
+        {
+            Dto = dto;
+            UserId = userId;
+            UserEmail = userEmail;
+            UserName = userName;
+        }
     }
 }

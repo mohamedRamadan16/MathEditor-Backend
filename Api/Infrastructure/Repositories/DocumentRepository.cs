@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Api.Application.Common.Interfaces;
 using Api.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
@@ -18,8 +16,8 @@ namespace Api.Infrastructure.Repositories
         {
             return await _context.Documents
                 .Include(d => d.Author)
-                .Include(d => d.Revisions)
-                .Include(d => d.Coauthors)
+                .Include(d => d.Revisions).ThenInclude(r => r.Author)
+                .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
                 .FirstOrDefaultAsync(d => d.Id == id);
         }
 
@@ -27,8 +25,8 @@ namespace Api.Infrastructure.Repositories
         {
             return await _context.Documents
                 .Include(d => d.Author)
-                .Include(d => d.Revisions)
-                .Include(d => d.Coauthors)
+                .Include(d => d.Revisions).ThenInclude(r => r.Author)
+                .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
                 .FirstOrDefaultAsync(d => d.Handle == handle);
         }
 
@@ -55,6 +53,26 @@ namespace Api.Infrastructure.Repositories
                 _context.Documents.Remove(doc);
                 await _context.SaveChangesAsync();
             }
+        }
+
+        public async Task<(List<Document> Items, int TotalCount)> GetPublishedPagedAsync(
+            int page, int pageSize, bool tracked = false
+        )
+        {
+            IQueryable<Document> query = _context.Documents;
+            query = query.Where(d => d.Published)
+                .Include(d => d.Author)
+                .Include(d => d.Revisions).ThenInclude(r => r.Author)
+                .Include(d => d.Coauthors).ThenInclude(ca => ca.User);
+            if (!tracked)
+                query = query.AsNoTracking();
+            int totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(d => d.UpdatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            return (items, totalCount);
         }
     }
 }

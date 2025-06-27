@@ -7,12 +7,15 @@ using Api.Application.Common.Interfaces;
 using Api.Infrastructure.Repositories;
 using Microsoft.OpenApi.Models;
 using Microsoft.AspNetCore.Identity;
+using Api.Infrastructure;
+using Api.Domain.Entities;
+using Api.Application.Mappings;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Register ApplicationDbContext for SQL Server
-builder.Services.AddDbContext<Api.Infrastructure.ApplicationDbContext>(options =>
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("MathEditorDB")));
 
 // Register MediatR
@@ -62,8 +65,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 // JWT Authentication configuration
-var jwtKey = builder.Configuration["Jwt:Key"] ?? "your_secret_key_here";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "your_issuer_here";
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "jfal;faslfsa456464-fdajk278fafjh29vasvfhakfafsaas";
+var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "MathEditorApi";
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -96,15 +99,22 @@ builder.Services.AddAuthentication(options =>
 });
 
 // Add Identity
-builder.Services.AddIdentityCore<Api.Domain.Entities.User>(options =>
+builder.Services.AddIdentityCore<User>(options =>
 {
     options.User.RequireUniqueEmail = true;
     // Add more options as needed
 })
 .AddRoles<IdentityRole<Guid>>()
-.AddEntityFrameworkStores<Api.Infrastructure.ApplicationDbContext>()
+.AddEntityFrameworkStores<ApplicationDbContext>()
 .AddSignInManager()
-.AddUserManager<UserManager<Api.Domain.Entities.User>>();
+.AddUserManager<UserManager<User>>();
+
+// Register AutoMapper
+builder.Services.AddAutoMapper(
+    typeof(DocumentProfile).Assembly,
+    typeof(UserProfile).Assembly,
+    typeof(RevisionProfile).Assembly
+);
 
 // Add CORS policy
 builder.Services.AddCors(options =>
@@ -112,8 +122,8 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowAll", policy =>
     {
         policy.AllowAnyOrigin()
-              .AllowAnyHeader()
-              .AllowAnyMethod();
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 

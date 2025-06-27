@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Api.Application.Common.Interfaces;
 using Api.Domain.Entities;
 using Microsoft.EntityFrameworkCore;

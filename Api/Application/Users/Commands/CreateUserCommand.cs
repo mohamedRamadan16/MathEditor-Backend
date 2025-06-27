@@ -1,30 +1,27 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
+using Api.Application.Common.Interfaces;
 using Api.Domain.Entities;
 using MediatR;
 
-namespace Api.Application.Users.Commands
-{
-    public class CreateUserCommand : IRequest<User>
-    {
-        public User User { get; }
-        public CreateUserCommand(User user)
-        {
-            User = user;
-        }
-    }
+namespace Api.Application.Users.Commands;
 
-    public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, User>
+public class CreateUserCommand : IRequest<User>
+{
+    public User User { get; }
+    public CreateUserCommand(User user)
     {
-        private readonly Common.Interfaces.IUserRepository _userRepository;
-        public CreateUserCommandHandler(Common.Interfaces.IUserRepository userRepository)
-        {
-            _userRepository = userRepository;
-        }
-        public async Task<User> Handle(CreateUserCommand request, CancellationToken cancellationToken)
-        {
-            return await _userRepository.CreateUserAsync(request.User);
-        }
+        User = user;
+    }
+}
+
+public class CreateUserCommandHandler : IRequestHandler<CreateUserCommand, User>
+{
+    private readonly IUserRepository _userRepository;
+    public CreateUserCommandHandler(IUserRepository userRepository)
+    {
+        _userRepository = userRepository;
+    }
+    public async Task<User> Handle(CreateUserCommand request, CancellationToken cancellationToken)
+    {
+        return await _userRepository.CreateUserAsync(request.User);
     }
 }
