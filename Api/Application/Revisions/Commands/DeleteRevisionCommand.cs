@@ -1,28 +1,26 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using MediatR;
-using Api.Application.Common.Interfaces;
-using Api.Domain.Entities; // Assuming the Revision entity is in this namespace
 
-namespace Api.Application.Revisions.Commands
+namespace Api.Application.Revisions.Commands;
+
+public class DeleteRevisionCommand : IRequest<DeleteRevisionResult>
 {
-    public class DeleteRevisionCommand : IRequest<Revision?>
+    private readonly Guid _revisionId;
+    private readonly Guid _userId;
+    private readonly string? _userEmail;
+    public Guid RevisionId => _revisionId;
+    public Guid UserId => _userId;
+    public string? UserEmail => _userEmail;
+    public DeleteRevisionCommand(Guid revisionId, Guid userId, string? userEmail = null)
     {
-        public Guid Id { get; }
-        public DeleteRevisionCommand(Guid id) => Id = id;
+        _revisionId = revisionId;
+        _userId = userId;
+        _userEmail = userEmail;
     }
-
-    public class DeleteRevisionCommandHandler : IRequestHandler<DeleteRevisionCommand, Revision?>
-    {
-        private readonly IRevisionRepository _repo;
-        public DeleteRevisionCommandHandler(IRevisionRepository repo) => _repo = repo;
-        public async Task<Revision?> Handle(DeleteRevisionCommand request, CancellationToken cancellationToken)
-        {
-            var revision = await _repo.FindByIdAsync(request.Id);
-            if (revision == null) return null;
-            await _repo.DeleteAsync(request.Id);
-            return revision;
-        }
-    }
+}
+public class DeleteRevisionResult
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+    public Guid? Id { get; set; }
+    public Guid? DocumentId { get; set; }
 }

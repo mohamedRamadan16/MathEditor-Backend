@@ -1,5 +1,3 @@
-using System;
-using System.Threading.Tasks;
 using Api.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -7,6 +5,9 @@ using Api.Application.Users.Queries;
 using Api.Application.Users.Commands;
 using Api.Application.Users.DTOs;
 using Api.Application.Common.DTOs;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
+using AutoMapper;
 
 namespace Api.Controllers
 {
@@ -15,16 +16,12 @@ namespace Api.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IMediator _mediator;
-        public UsersController(IMediator mediator) => _mediator = mediator;
-
-        private static UserResponseDto MapToDto(User user) => new UserResponseDto
+        private readonly IMapper _mapper;
+        public UsersController(IMediator mediator, IMapper mapper)
         {
-            Id = user.Id,
-            Handle = user.Handle,
-            Name = user.Name,
-            Email = user.Email,
-            Image = user.Image
-        };
+            _mediator = mediator;
+            _mapper = mapper;
+        }
 
         [HttpGet("{handleOrId}")]
         public async Task<ActionResult<ApiResponse<UserResponseDto>>> Get(string handleOrId)
@@ -33,7 +30,7 @@ namespace Api.Controllers
             {
                 var user = await _mediator.Send(new GetUserByHandleOrIdQuery(handleOrId));
                 if (user == null) return NotFound(new ApiResponse<UserResponseDto>(null, false, "User not found"));
-                return Ok(new ApiResponse<UserResponseDto>(MapToDto(user)));
+                return Ok(new ApiResponse<UserResponseDto>(_mapper.Map<UserResponseDto>(user)));
             }
             catch (Exception ex)
             {
@@ -48,7 +45,7 @@ namespace Api.Controllers
             {
                 var user = await _mediator.Send(new GetUserByEmailQuery(email));
                 if (user == null) return NotFound(new ApiResponse<UserResponseDto>(null, false, "User not found"));
-                return Ok(new ApiResponse<UserResponseDto>(MapToDto(user)));
+                return Ok(new ApiResponse<UserResponseDto>(_mapper.Map<UserResponseDto>(user)));
             }
             catch (Exception ex)
             {
@@ -57,27 +54,29 @@ namespace Api.Controllers
         }
 
         [HttpPut("{id}")]
-        public async Task<ActionResult<ApiResponse<UserResponseDto>>> Update(Guid id, [FromBody] UserResponseDto dto)
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<UserResponseDto>>> Update(Guid id, [FromBody] UpdateUserDto dto)
         {
             if (dto == null || id == Guid.Empty)
                 return BadRequest(new ApiResponse<UserResponseDto>(null, false, "Invalid user data"));
             try
             {
-                // Fetch the existing user to preserve the email
+                // Only allow user to update their own account (or admin)
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                var isAdmin = User.IsInRole("admin");
+                if (!isAdmin && (!Guid.TryParse(userIdClaim, out var userId) || userId != id))
+                    return Forbid();
+
                 var existingUser = await _mediator.Send(new GetUserByHandleOrIdQuery(id.ToString()));
                 if (existingUser == null)
                     return NotFound(new ApiResponse<UserResponseDto>(null, false, "User not found"));
 
-                var user = new User
-                {
-                    Id = id,
-                    Handle = dto.Handle,
-                    Name = dto.Name,
-                    Email = existingUser.Email, // Preserve the original email
-                    Image = dto.Image
-                };
+                var user = _mapper.Map<User>(dto);
+                user.Id = id;
+                user.Email = existingUser.Email;
+                
                 var updated = await _mediator.Send(new UpdateUserCommand(id, user));
-                return Ok(new ApiResponse<UserResponseDto>(MapToDto(updated)));
+                return Ok(new ApiResponse<UserResponseDto>(_mapper.Map<UserResponseDto>(updated)));
             }
             catch (Exception ex)
             {
@@ -86,10 +85,17 @@ namespace Api.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
         {
             try
             {
+                // Only allow user to delete their own account (or admin)
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? User.FindFirst("sub")?.Value;
+                var isAdmin = User.IsInRole("admin");
+                if (!isAdmin && (!Guid.TryParse(userIdClaim, out var userId) || userId != id))
+                    return Forbid();
+
                 await _mediator.Send(new DeleteUserCommand(id));
                 return Ok(new ApiResponse<object>(new { id = id }));
             }

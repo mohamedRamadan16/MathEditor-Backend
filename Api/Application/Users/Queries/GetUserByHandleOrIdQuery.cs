@@ -1,5 +1,6 @@
 using System.Threading;
 using System.Threading.Tasks;
+using Api.Application.Common.Interfaces;
 using Api.Domain.Entities;
 using MediatR;
 
@@ -16,8 +17,8 @@ namespace Api.Application.Users.Queries
 
     public class GetUserByHandleOrIdQueryHandler : IRequestHandler<GetUserByHandleOrIdQuery, User?>
     {
-        private readonly Common.Interfaces.IUserRepository _userRepository;
-        public GetUserByHandleOrIdQueryHandler(Common.Interfaces.IUserRepository userRepository)
+        private readonly IUserRepository _userRepository;
+        public GetUserByHandleOrIdQueryHandler(IUserRepository userRepository)
         {
             _userRepository = userRepository;
         }

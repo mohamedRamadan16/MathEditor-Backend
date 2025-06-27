@@ -1,22 +1,25 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Api.Domain.Entities;
-using MediatR;
 using Api.Application.Common.Interfaces;
+using MediatR;
+using Api.Application.Documents.DTOs;
+using AutoMapper;
+using Microsoft.EntityFrameworkCore;
+using System.Collections.Generic;
+using System;
+using System.Linq;
 
 namespace Api.Application.Documents.Commands
 {
-    public class CreateDocumentCommand : IRequest<Document>
+    public class CreateDocumentCommand : IRequest<DocumentResponseDto?>
     {
-        public Document Document { get; }
-        public CreateDocumentCommand(Document document) => Document = document;
-    }
-
-    public class CreateDocumentCommandHandler : IRequestHandler<CreateDocumentCommand, Document>
-    {
-        private readonly IDocumentRepository _repo;
-        public CreateDocumentCommandHandler(IDocumentRepository repo) => _repo = repo;
-        public async Task<Document> Handle(CreateDocumentCommand request, CancellationToken cancellationToken)
-            => await _repo.CreateAsync(request.Document);
+        public DocumentCreateDto Dto { get; }
+        public Guid UserId { get; }
+        public CreateDocumentCommand(DocumentCreateDto dto, Guid userId)
+        {
+            Dto = dto;
+            UserId = userId;
+        }
     }
 }

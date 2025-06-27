@@ -1,19 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using Api.Domain.Entities;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Api.Application.Documents.Queries;
 using Api.Application.Documents.Commands;
 using Api.Application.Documents.DTOs;
 using Api.Infrastructure;
-using Microsoft.EntityFrameworkCore;
 using Api.Application.Common.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
-using System.ComponentModel.DataAnnotations;
 
 namespace Api.Controllers
 {
@@ -22,39 +15,33 @@ namespace Api.Controllers
     public class DocumentsController : ControllerBase
     {
         private readonly IMediator _mediator;
-        private readonly ApplicationDbContext _db;
-        public DocumentsController(IMediator mediator, ApplicationDbContext db)
+        public DocumentsController(IMediator mediator)
         {
             _mediator = mediator;
-            _db = db;
         }
+
+        private Guid? GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                ?? User.FindFirst("sub")?.Value;
+            if (Guid.TryParse(userIdClaim, out var userId))
+                return userId;
+            return null;
+        }
+
 
         [HttpGet]
         public async Task<ActionResult<ApiResponse<object>>> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             try
             {
-                if (page < 1) page = 1;
-                if (pageSize < 1) pageSize = 10;
-                var query = _db.Documents
-                    .Include(d => d.Author)
-                    .Include(d => d.Revisions).ThenInclude(r => r.Author)
-                    .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
-                    .Where(d => d.Published);
-                var totalCount = await query.CountAsync();
-                var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-                var docs = await query
-                    .OrderByDescending(d => d.UpdatedAt)
-                    .Skip((page - 1) * pageSize)
-                    .Take(pageSize)
-                    .ToListAsync();
-                var result = docs.Select(MapToDto).ToList();
+                var result = await _mediator.Send(new GetAllDocumentsQuery(page, pageSize));
                 var response = new {
-                    items = result,
-                    page,
-                    pageSize,
-                    totalCount,
-                    totalPages
+                    items = result.Items,
+                    page = result.Page,
+                    pageSize = result.PageSize,
+                    totalCount = result.TotalCount,
+                    totalPages = result.TotalPages
                 };
                 return Ok(new ApiResponse<object>(response));
             }
@@ -72,13 +59,9 @@ namespace Api.Controllers
         {
             try
             {
-                var doc = await _db.Documents
-                    .Include(d => d.Author)
-                    .Include(d => d.Revisions).ThenInclude(r => r.Author)
-                    .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
-                    .FirstOrDefaultAsync(d => d.Id == id);
+                var doc = await _mediator.Send(new GetDocumentByIdQuery(id));
                 if (doc == null) return NotFound(new ApiResponse<DocumentResponseDto>(null, false, "Document not found"));
-                return Ok(new ApiResponse<DocumentResponseDto>(MapToDto(doc)));
+                return Ok(new ApiResponse<DocumentResponseDto>(doc));
             }
             catch (Exception ex)
             {
@@ -94,13 +77,9 @@ namespace Api.Controllers
         {
             try
             {
-                var doc = await _db.Documents
-                    .Include(d => d.Author)
-                    .Include(d => d.Revisions).ThenInclude(r => r.Author)
-                    .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
-                    .FirstOrDefaultAsync(d => d.Handle == handle);
+                var doc = await _mediator.Send(new GetDocumentByHandleQuery(handle));
                 if (doc == null) return NotFound(new ApiResponse<DocumentResponseDto>(null, false, "Document not found"));
-                return Ok(new ApiResponse<DocumentResponseDto>(MapToDto(doc)));
+                return Ok(new ApiResponse<DocumentResponseDto>(doc));
             }
             catch (Exception ex)
             {
@@ -120,62 +99,10 @@ namespace Api.Controllers
                 return BadRequest(new ApiResponse<DocumentResponseDto>(null, false, "Invalid document data"));
             try
             {
-                // Create Document
-                var doc = new Document
-                {
-                    Id = Guid.NewGuid(),
-                    Handle = dto.Handle,
-                    Name = dto.Name,
-                    Head = dto.Head ?? Guid.NewGuid(),
-                    CreatedAt = dto.CreatedAt ?? DateTime.UtcNow,
-                    UpdatedAt = dto.UpdatedAt ?? DateTime.UtcNow,
-                    AuthorId = userId.Value,
-                    Published = dto.Published,
-                    Collab = dto.Collab,
-                    Private = dto.Private,
-                    BaseId = dto.BaseId
-                };
-                // Add coauthors
-                if (dto.Coauthors != null)
-                {
-                    doc.Coauthors = new List<DocumentCoauthor>();
-                    foreach (var email in dto.Coauthors)
-                    {
-                        if (string.IsNullOrWhiteSpace(email))
-                            return BadRequest(new ApiResponse<DocumentResponseDto>(null, false, $"Coauthor email is required."));
-                        var emailValidator = new EmailAddressAttribute();
-                        if (!emailValidator.IsValid(email))
-                            return BadRequest(new ApiResponse<DocumentResponseDto>(null, false, $"Invalid coauthor email: {email}"));
-                        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == email.Trim().ToLowerInvariant());
-                        if (user == null)
-                            return BadRequest(new ApiResponse<DocumentResponseDto>(null, false, $"User with email {email} does not exist. Only registered users can be added as coauthors."));
-                        doc.Coauthors.Add(new DocumentCoauthor { DocumentId = doc.Id, UserEmail = email.Trim().ToLowerInvariant(), User = user, CreatedAt = DateTime.UtcNow });
-                    }
-                }
-                // Add initial revision
-                if (dto.InitialRevision != null)
-                {
-                    doc.Revisions = new List<Revision>();
-                    var rev = new Revision
-                    {
-                        Id = dto.InitialRevision.Id ?? Guid.NewGuid(),
-                        Data = dto.InitialRevision.Data,
-                        CreatedAt = dto.InitialRevision.CreatedAt ?? DateTime.UtcNow,
-                        AuthorId = userId.Value, // Always set to current user
-                        DocumentId = doc.Id
-                    };
-                    doc.Head = rev.Id;
-                    doc.Revisions.Add(rev);
-                }
-                _db.Documents.Add(doc);
-                await _db.SaveChangesAsync();
-                var created = await _db.Documents
-                    .Include(d => d.Author)
-                    .Include(d => d.Revisions).ThenInclude(r => r.Author)
-                    .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
-                    .FirstOrDefaultAsync(d => d.Id == doc.Id);
-                if (created == null) return StatusCode(500, new ApiResponse<DocumentResponseDto>(null, false, "Document creation failed."));
-                return CreatedAtAction(nameof(Get), new { id = doc.Id }, new ApiResponse<DocumentResponseDto>(MapToDto(created)));
+                var result = await _mediator.Send(new CreateDocumentCommand(dto, userId.Value));
+                if (result == null)
+                    return StatusCode(500, new ApiResponse<DocumentResponseDto>(null, false, "Document creation failed."));
+                return CreatedAtAction(nameof(Get), new { id = result.Id }, new ApiResponse<DocumentResponseDto>(result));
             }
             catch (Exception ex)
             {
@@ -189,33 +116,15 @@ namespace Api.Controllers
         [HttpPost("new/{id}")]
         public async Task<ActionResult<ApiResponse<DocumentResponseDto>>> Fork(Guid id)
         {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new ApiResponse<DocumentResponseDto>(null, false, "Unauthorized"));
             try
             {
-                var baseDoc = await _db.Documents.Include(d => d.Revisions).FirstOrDefaultAsync(d => d.Id == id);
-                if (baseDoc == null) return NotFound(new ApiResponse<DocumentResponseDto>(null, false, "Base document not found"));
-                var fork = new Document
-                {
-                    Id = Guid.NewGuid(),
-                    Name = baseDoc.Name + " (fork)",
-                    Handle = null,
-                    Head = baseDoc.Head,
-                    CreatedAt = DateTime.UtcNow,
-                    UpdatedAt = DateTime.UtcNow,
-                    AuthorId = baseDoc.AuthorId,
-                    Published = false,
-                    Collab = baseDoc.Collab,
-                    Private = baseDoc.Private,
-                    BaseId = baseDoc.Id
-                };
-                _db.Documents.Add(fork);
-                await _db.SaveChangesAsync();
-                var created = await _db.Documents
-                    .Include(d => d.Author)
-                    .Include(d => d.Revisions).ThenInclude(r => r.Author)
-                    .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
-                    .FirstOrDefaultAsync(d => d.Id == fork.Id);
-                if (created == null) return StatusCode(500, new ApiResponse<DocumentResponseDto>(null, false, "Fork creation failed."));
-                return CreatedAtAction(nameof(Get), new { id = fork.Id }, new ApiResponse<DocumentResponseDto>(MapToDto(created)));
+                var result = await _mediator.Send(new ForkDocumentCommand(id, userId.Value));
+                if (result == null)
+                    return NotFound(new ApiResponse<DocumentResponseDto>(null, false, "Base document not found"));
+                return CreatedAtAction(nameof(Get), new { id = result.Id }, new ApiResponse<DocumentResponseDto>(result));
             }
             catch (Exception ex)
             {
@@ -226,53 +135,23 @@ namespace Api.Controllers
             }
         }
 
-        private Guid? GetCurrentUserId()
-        {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
-                ?? User.FindFirst("sub")?.Value;
-            if (Guid.TryParse(userIdClaim, out var userId))
-                return userId;
-            return null;
-        }
-
         [HttpPut]
         [Authorize]
         public async Task<ActionResult<ApiResponse<DocumentResponseDto>>> Update([FromBody] DocumentUpdateDto dto)
         {
             if (dto == null || dto.Id == Guid.Empty)
                 return BadRequest(new ApiResponse<DocumentResponseDto>(null, false, "Invalid document data"));
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new ApiResponse<DocumentResponseDto>(null, false, "Unauthorized"));
+            
             try
             {
-                var userId = GetCurrentUserId();
-                if (userId == null)
-                    return Unauthorized(new ApiResponse<DocumentResponseDto>(null, false, "Unauthorized"));
-                var doc = await _db.Documents
-                    .Include(d => d.Coauthors)
-                    .FirstOrDefaultAsync(d => d.Id == dto.Id);
-                if (doc == null) return NotFound(new ApiResponse<DocumentResponseDto>(null, false, "Document not found"));
-                // Only author or coauthor can update
-                var userEmail = User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-                var isCoauthor = doc.Coauthors.Any(ca =>
-                    (ca.User != null && ca.User.Id == userId) ||
-                    (!string.IsNullOrEmpty(userEmail) && ca.UserEmail == userEmail)
-                );
-                if (doc.AuthorId != userId && !isCoauthor)
+                var userEmail = User.FindFirst(ClaimTypes.Email)?.Value;
+                var result = await _mediator.Send(new UpdateDocumentCommand(dto, userId.Value, userEmail));
+                if (result == null)
                     return Forbid();
-                doc.Name = dto.Name;
-                doc.Handle = dto.Handle;
-                doc.UpdatedAt = DateTime.UtcNow;
-                doc.Published = dto.Published;
-                doc.Collab = dto.Collab;
-                doc.Private = dto.Private;
-                await _db.SaveChangesAsync();
-                var updated = await _db.Documents
-                    .Include(d => d.Author)
-                    .Include(d => d.Revisions).ThenInclude(r => r.Author)
-                    .Include(d => d.Coauthors).ThenInclude(ca => ca.User)
-                    .FirstOrDefaultAsync(d => d.Id == doc.Id);
-                if (updated == null)
-                    return StatusCode(500, new ApiResponse<DocumentResponseDto>(null, false, "Document update failed."));
-                return Ok(new ApiResponse<DocumentResponseDto>(MapToDto(updated)));
+                return Ok(new ApiResponse<DocumentResponseDto>(result));
             }
             catch (Exception ex)
             {
@@ -287,18 +166,21 @@ namespace Api.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> Delete(Guid id)
         {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
+                
             try
             {
-                var userId = GetCurrentUserId();
-                if (userId == null)
-                    return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
-                var doc = await _db.Documents.FirstOrDefaultAsync(d => d.Id == id);
-                if (doc == null) return NotFound(new ApiResponse<object>(null, false, "Document not found"));
-                // Only author can delete
-                if (doc.AuthorId != userId)
-                    return Forbid();
-                _db.Documents.Remove(doc);
-                await _db.SaveChangesAsync();
+                var result = await _mediator.Send(new DeleteDocumentCommand(id, userId.Value));
+                if (!result.Success)
+                {
+                    if (result.Error == "Document not found")
+                        return NotFound(new ApiResponse<object>(null, false, result.Error));
+                    if (result.Error == "Forbidden")
+                        return Forbid();
+                    return BadRequest(new ApiResponse<object>(null, false, result.Error));
+                }
                 return Ok(new ApiResponse<object>(new { id = id }));
             }
             catch (Exception ex)
@@ -314,67 +196,71 @@ namespace Api.Controllers
         [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> AddCoauthor(Guid id, [FromBody] string email)
         {
-            if (string.IsNullOrWhiteSpace(email))
-                return BadRequest(new ApiResponse<object>(null, false, "Email is required."));
-            var emailValidator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
-            if (!emailValidator.IsValid(email))
-                return BadRequest(new ApiResponse<object>(null, false, "Invalid email address."));
             var userId = GetCurrentUserId();
             if (userId == null)
                 return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
-            var doc = await _db.Documents.Include(d => d.Coauthors).FirstOrDefaultAsync(d => d.Id == id);
-            if (doc == null)
-                return NotFound(new ApiResponse<object>(null, false, "Document not found"));
-            if (doc.AuthorId != userId)
-                return Forbid();
-            var normalizedEmail = email.Trim().ToLowerInvariant();
-            if (doc.Coauthors.Any(ca => ca.UserEmail != null && ca.UserEmail.ToLower() == normalizedEmail))
-                return BadRequest(new ApiResponse<object>(null, false, "Coauthor already exists."));
-            var user = await _db.Users.FirstOrDefaultAsync(u => u.Email != null && u.Email.ToLower() == normalizedEmail);
-            if (user == null)
-                return BadRequest(new ApiResponse<object>(null, false, "User with this email does not exist. Only registered users can be added as coauthors."));
-            doc.Coauthors.Add(new DocumentCoauthor { DocumentId = doc.Id, UserEmail = normalizedEmail, User = user, CreatedAt = DateTime.UtcNow });
-            await _db.SaveChangesAsync();
-            return Ok(new ApiResponse<object>(new { coauthor = normalizedEmail }, true, "Coauthor added."));
+            try
+            {
+                var result = await _mediator.Send(new AddCoauthorCommand(id, email, userId.Value));
+                if (!result.Success)
+                {
+                    if (result.Error == "Document not found.")
+                        return NotFound(new ApiResponse<object>(null, false, result.Error));
+                    if (result.Error == "Forbidden")
+                        return Forbid();
+                    return BadRequest(new ApiResponse<object>(null, false, result.Error));
+                }
+                return Ok(new ApiResponse<object>(new { coauthor = result.Coauthor }, true, "Coauthor added."));
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                    errorMessage += " | Inner: " + ex.InnerException.Message;
+                return StatusCode(500, new ApiResponse<object>(null, false, $"Error: {errorMessage}"));
+            }
         }
 
         [HttpDelete("{id}/coauthors")]
         [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> RemoveCoauthor(Guid id, [FromBody] string email)
         {
-            if (string.IsNullOrWhiteSpace(email))
-                return BadRequest(new ApiResponse<object>(null, false, "Email is required."));
-            var emailValidator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
-            if (!emailValidator.IsValid(email))
-                return BadRequest(new ApiResponse<object>(null, false, "Invalid email address."));
             var userId = GetCurrentUserId();
             if (userId == null)
                 return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
-            var doc = await _db.Documents.Include(d => d.Coauthors).FirstOrDefaultAsync(d => d.Id == id);
-            if (doc == null)
-                return NotFound(new ApiResponse<object>(null, false, "Document not found"));
-            if (doc.AuthorId != userId)
-                return Forbid();
-            var normalizedEmail = email.Trim().ToLowerInvariant();
-            var coauthor = doc.Coauthors.FirstOrDefault(ca => ca.UserEmail != null && ca.UserEmail.ToLower() == normalizedEmail);
-            if (coauthor == null)
-                return NotFound(new ApiResponse<object>(null, false, "Coauthor not found."));
-            doc.Coauthors.Remove(coauthor);
-            await _db.SaveChangesAsync();
-            return Ok(new ApiResponse<object>(new { coauthor = normalizedEmail }, true, "Coauthor removed."));
+            try
+            {
+                var result = await _mediator.Send(new RemoveCoauthorCommand(id, email, userId.Value));
+                if (!result.Success)
+                {
+                    if (result.Error == "Document not found.")
+                        return NotFound(new ApiResponse<object>(null, false, result.Error));
+                    if (result.Error == "Forbidden")
+                        return Forbid();
+                    return BadRequest(new ApiResponse<object>(null, false, result.Error));
+                }
+                return Ok(new ApiResponse<object>(new { coauthor = result.Coauthor }, true, "Coauthor removed."));
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                    errorMessage += " | Inner: " + ex.InnerException.Message;
+                return StatusCode(500, new ApiResponse<object>(null, false, $"Error: {errorMessage}"));
+            }
         }
 
         [HttpPut("{id}/head")]
         [Authorize]
         public async Task<ActionResult<ApiResponse<object>>> UpdateHead(Guid id, [FromBody] Guid newHeadId)
         {
+            if (newHeadId == Guid.Empty)
+                return BadRequest(new ApiResponse<object>(null, false, "Invalid revision ID."));
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
             try
             {
-                if (newHeadId == Guid.Empty)
-                    return BadRequest(new ApiResponse<object>(null, false, "Invalid revision ID."));
-                var userId = GetCurrentUserId();
-                if (userId == null)
-                    return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
                 var userEmail = User.FindFirst(ClaimTypes.Email)?.Value ?? string.Empty;
                 var result = await _mediator.Send(new UpdateDocumentHeadCommand(id, newHeadId, userId.Value, userEmail));
                 if (!result.Success)
@@ -394,55 +280,6 @@ namespace Api.Controllers
                     errorMessage += " | Inner: " + ex.InnerException.Message;
                 return StatusCode(500, new ApiResponse<object>(null, false, $"Error: {errorMessage}"));
             }
-        }
-
-        private static DocumentResponseDto MapToDto(Document doc)
-        {
-            return new DocumentResponseDto
-            {
-                Id = doc.Id,
-                Handle = doc.Handle,
-                Name = doc.Name,
-                Head = doc.Head,
-                CreatedAt = doc.CreatedAt,
-                UpdatedAt = doc.UpdatedAt,
-                AuthorId = doc.AuthorId,
-                Published = doc.Published,
-                Collab = doc.Collab,
-                Private = doc.Private,
-                BaseId = doc.BaseId,
-                Author = doc.Author == null ? null : new DocumentUserResponseDto
-                {
-                    Id = doc.Author.Id,
-                    Handle = doc.Author.Handle,
-                    Name = doc.Author.Name,
-                    Email = doc.Author.Email ?? string.Empty,
-                    Image = doc.Author.Image
-                },
-                Revisions = doc.Revisions?.Select(r => new DocumentRevisionResponseDto
-                {
-                    Id = r.Id,
-                    Data = r.Data,
-                    CreatedAt = r.CreatedAt,
-                    AuthorId = r.AuthorId,
-                    Author = r.Author == null ? null : new DocumentUserResponseDto
-                    {
-                        Id = r.Author.Id,
-                        Handle = r.Author.Handle,
-                        Name = r.Author.Name,
-                        Email = r.Author.Email ?? string.Empty,
-                        Image = r.Author.Image
-                    }
-                }).ToList(),
-                Coauthors = doc.Coauthors?.Where(ca => ca.User != null).Select(ca => new DocumentUserResponseDto
-                {
-                    Id = ca.User.Id,
-                    Handle = ca.User.Handle,
-                    Name = ca.User.Name,
-                    Email = ca.User.Email ?? string.Empty,
-                    Image = ca.User.Image
-                }).ToList() ?? new List<DocumentUserResponseDto>()
-            };
         }
     }
 }

@@ -1,25 +1,21 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 using MediatR;
-using Api.Application.Common.Interfaces;
 
 namespace Api.Application.Documents.Commands
 {
-    public class DeleteDocumentCommand : IRequest
+    public class DeleteDocumentCommand : IRequest<DeleteDocumentResult>
     {
         public Guid Id { get; }
-        public DeleteDocumentCommand(Guid id) => Id = id;
+        public Guid UserId { get; }
+        public DeleteDocumentCommand(Guid id, Guid userId)
+        {
+            Id = id;
+            UserId = userId;
+        }
     }
 
-    public class DeleteDocumentCommandHandler : IRequestHandler<DeleteDocumentCommand>
+    public class DeleteDocumentResult
     {
-        private readonly IDocumentRepository _repo;
-        public DeleteDocumentCommandHandler(IDocumentRepository repo) => _repo = repo;
-        public async Task<Unit> Handle(DeleteDocumentCommand request, CancellationToken cancellationToken)
-        {
-            await _repo.DeleteAsync(request.Id);
-            return Unit.Value;
-        }
+        public bool Success { get; set; }
+        public string? Error { get; set; }
     }
 }
