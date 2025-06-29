@@ -29,8 +29,8 @@ namespace Api.Application.Documents.Commands
             var doc = _mapper.Map<Document>(dto);
             doc.Id = Guid.NewGuid();
             doc.AuthorId = userId;
-            doc.CreatedAt = dto.CreatedAt ?? DateTime.UtcNow;
-            doc.UpdatedAt = dto.UpdatedAt ?? DateTime.UtcNow;
+            doc.CreatedAt = DateTime.UtcNow;
+            doc.UpdatedAt = DateTime.UtcNow;
             
             if (doc.Head == Guid.Empty && doc.Revisions != null && doc.Revisions.Count > 0)
                 doc.Head = doc.Revisions.FirstOrDefault()?.Id ?? Guid.Empty;
@@ -38,6 +38,9 @@ namespace Api.Application.Documents.Commands
             var firstRev = doc.Revisions?.FirstOrDefault();
             if (firstRev != null)
             {
+                if (firstRev.Id == Guid.Empty)
+                    firstRev.Id = Guid.NewGuid();
+                doc.Head = firstRev.Id;
                 firstRev.AuthorId = userId;
                 firstRev.DocumentId = doc.Id;
             }

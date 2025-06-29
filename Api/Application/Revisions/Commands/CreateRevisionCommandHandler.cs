@@ -29,9 +29,9 @@ public class CreateRevisionCommandHandler : IRequestHandler<CreateRevisionComman
             return null;
 
         var rev = _mapper.Map<Revision>(dto);
-        rev.Id = dto.Id != null && dto.Id != Guid.Empty ? dto.Id.Value : Guid.NewGuid();
+
         rev.AuthorId = request.UserId;
-        rev.CreatedAt = dto.CreatedAt ?? DateTime.UtcNow;
+        rev.CreatedAt = DateTime.UtcNow;
 
         var created = await _revRepo.CreateAsync(rev);
         doc.Head = created.Id;

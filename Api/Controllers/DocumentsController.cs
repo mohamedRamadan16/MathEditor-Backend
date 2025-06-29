@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Api.Application.Documents.Queries;
 using Api.Application.Documents.Commands;
 using Api.Application.Documents.DTOs;
-using Api.Infrastructure;
 using Api.Application.Common.DTOs;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
