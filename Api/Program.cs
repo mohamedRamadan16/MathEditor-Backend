@@ -10,6 +10,12 @@ using Microsoft.AspNetCore.Identity;
 using Api.Infrastructure;
 using Api.Domain.Entities;
 using Api.Application.Mappings;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Api.Application.Documents.Validators;
+using Api.Application.Documents.DTOs;
+using Api.Application.Revisions.Validators;
+using Api.Application.Auth.Validators;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +38,15 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
+
+// Register FluentValidation
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddFluentValidationClientsideAdapters();
+builder.Services.AddValidatorsFromAssemblyContaining<DocumentCreateDtoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<DocumentUpdateDtoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<CreateRevisionDtoValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
+builder.Services.AddValidatorsFromAssemblyContaining<LoginRequestValidator>();
 
 builder.Services.AddOpenApi();
 

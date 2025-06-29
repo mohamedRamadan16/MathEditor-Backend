@@ -24,11 +24,9 @@ namespace Api.Application.Mappings
             CreateMap<DocumentCreateDto, Document>()
                 .ForMember(dest => dest.Coauthors, opt => opt.MapFrom(src => src.Coauthors != null ? src.Coauthors.Select(email => new DocumentCoauthor { UserEmail = email.Trim().ToLowerInvariant(), CreatedAt = DateTime.UtcNow }).ToList() : new List<DocumentCoauthor>()))
                 .ForMember(dest => dest.Revisions, opt => opt.MapFrom(src => src.InitialRevision != null ? new List<Revision> { new Revision {
-                    Id = src.InitialRevision.Id ?? Guid.NewGuid(),
-                    Data = src.InitialRevision.Data,
-                    CreatedAt = src.InitialRevision.CreatedAt ?? DateTime.UtcNow
+                    Data = src.InitialRevision.Data
                 }} : new List<Revision>()))
-                .ForMember(dest => dest.Head, opt => opt.MapFrom(src => src.InitialRevision != null && src.InitialRevision.Id != null ? src.InitialRevision.Id.Value : Guid.Empty));
+                .ForMember(dest => dest.Head, opt => opt.MapFrom(src => Guid.Empty));
         }
     }
 }

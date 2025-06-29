@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using Api.Domain.Entities;
+using Api.Infrastructure.Configurations;
 
 namespace Api.Infrastructure
 {
@@ -22,6 +23,12 @@ namespace Api.Infrastructure
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            // Apply entity configurations
+            modelBuilder.ApplyConfiguration(new DocumentConfiguration());
+            modelBuilder.ApplyConfiguration(new UserConfiguration());
+            modelBuilder.ApplyConfiguration(new RevisionConfiguration());
+            modelBuilder.ApplyConfiguration(new DocumentCoauthorConfiguration());
+
             // Configure composite keys and relationships as needed
             modelBuilder.Entity<DocumentCoauthor>()
                 .HasKey(dc => new { dc.DocumentId, dc.UserEmail });

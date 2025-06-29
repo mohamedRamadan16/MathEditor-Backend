@@ -144,7 +144,6 @@ namespace Api.Controllers
             }
         }
 
-        // POST: api/auth/logout
         [HttpPost("logout")]
         public IActionResult Logout()
         {

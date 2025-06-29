@@ -1,3 +1,5 @@
+using Api.Domain.Entities;
+
 namespace Api.Application.Documents.DTOs;
 
 public class DocumentResponseDto
@@ -17,7 +19,7 @@ public class DocumentResponseDto
     public List<DocumentUserResponseDto>? Coauthors { get; set; }
     public List<DocumentRevisionResponseDto>? Revisions { get; set; }
 
-    public static DocumentResponseDto MapFromEntity(Api.Domain.Entities.Document doc)
+    public static DocumentResponseDto MapFromEntity(Document doc)
     {
         return new DocumentResponseDto
         {
