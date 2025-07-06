@@ -20,6 +20,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="9.0.6" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="OpenAI" Version="2.1.0" />
     <PackageReference Include="OpenAI.Client" Version="0.2.0" />
     <PackageReference Include="PuppeteerSharp" Version="20.1.3" />

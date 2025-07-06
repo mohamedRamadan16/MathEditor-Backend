@@ -16,6 +16,7 @@ using Api.Application.Documents.Validators;
 using Api.Application.Documents.DTOs;
 using Api.Application.Revisions.Validators;
 using Api.Application.Auth.Validators;
+using EventHorizon.DataAccess.Persistence;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,9 @@ builder.Services.AddMediatR(typeof(Program));
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
 builder.Services.AddScoped<IRevisionRepository, RevisionRepository>();
+
+// Register seeder
+builder.Services.AddScoped<ISeeder, DbSeeder>();
 
 // Register controllers
 builder.Services.AddControllers()
@@ -117,7 +121,20 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddIdentityCore<User>(options =>
 {
     options.User.RequireUniqueEmail = true;
-    // Add more options as needed
+    // Password settings
+    options.Password.RequireDigit = true;
+    options.Password.RequireLowercase = true;
+    options.Password.RequireUppercase = true;
+    options.Password.RequireNonAlphanumeric = false;
+    options.Password.RequiredLength = 6;
+    options.Password.RequiredUniqueChars = 1;
+    // Lockout settings
+    options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
+    options.Lockout.MaxFailedAccessAttempts = 5;
+    options.Lockout.AllowedForNewUsers = true;
+    // User settings
+    options.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+";
+    options.User.RequireUniqueEmail = true;
 })
 .AddRoles<IdentityRole<Guid>>()
 .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -140,6 +157,14 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
+    
+    options.AddPolicy("Development", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000", "https://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
 });
 
 var app = builder.Build();
@@ -153,10 +178,24 @@ app.UseSwaggerUI(c =>
 app.UseHttpsRedirection();
 
 // Enable CORS
-app.UseCors("AllowAll");
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("Development");
+}
+else
+{
+    app.UseCors("AllowAll");
+}
 
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+
+// Initialize database and seed data
+using (var scope = app.Services.CreateScope())
+{
+    var seeder = scope.ServiceProvider.GetRequiredService<ISeeder>();
+    await seeder.Seed();
+}
 
 app.Run();

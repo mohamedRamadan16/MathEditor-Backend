@@ -1,3 +1,6 @@
+using Api.Application.Revisions.DTOs;
+using System.Text.Json;
+
 namespace Api.Application.Documents.DTOs;
 
 public class DocumentCreateDto
@@ -15,5 +18,16 @@ public class DocumentCreateDto
 
 public class InitialRevisionDto
 {
-    public string Data { get; set; } = string.Empty;
+    public LexicalStateDto Data { get; set; } = null!;
+    
+    /// <summary>
+    /// Converts the structured Data to JSON string for storage
+    /// </summary>
+    public string GetDataAsJson()
+    {
+        return JsonSerializer.Serialize(Data, new JsonSerializerOptions
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        });
+    }
 }

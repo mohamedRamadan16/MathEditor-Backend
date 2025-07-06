@@ -77,17 +77,20 @@ namespace Api.Controllers
         {
             if (dto == null || dto.DocumentId == Guid.Empty)
                 return BadRequest(new ApiResponse<RevisionResponseDto>(null, false, "Invalid revision data"));
+            
             try
             {
                 var user = GetCurrentUser();
                 if (user == null)
                     return Unauthorized(new ApiResponse<RevisionResponseDto>(null, false, "Unauthorized: Please sign in to save your revision to the cloud"));
+                
                 if (user.Disabled)
                     return StatusCode(403, new ApiResponse<RevisionResponseDto>(null, false, "Account Disabled: Account is disabled for violating terms of service"));
 
                 var result = await _mediator.Send(new CreateRevisionCommand(dto, user.Id, user.Email, user.Name));
                 if (result == null)
                     return Forbid();
+                
                 return Ok(new ApiResponse<RevisionResponseDto>(result));
             }
             catch (Exception ex)

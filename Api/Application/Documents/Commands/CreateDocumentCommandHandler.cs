@@ -26,6 +26,14 @@ namespace Api.Application.Documents.Commands
             var userId = request.UserId;
             if (dto == null || string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Handle))
                 return null;
+
+            // Validate initial revision Lexical state structure
+            if (dto.InitialRevision?.Data?.Root == null || dto.InitialRevision.Data.Root.Children == null)
+            {
+                // Invalid initial revision Lexical state: return null so controller can return 400 Bad Request
+                return null;
+            }
+
             var doc = _mapper.Map<Document>(dto);
             doc.Id = Guid.NewGuid();
             doc.AuthorId = userId;

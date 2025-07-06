@@ -22,6 +22,14 @@ namespace Api.Infrastructure.Configurations
                 .IsRequired();
             builder.Property(d => d.Id)
                 .HasDefaultValueSql("NEWID()");
+            
+            // Set default values for boolean properties
+            builder.Property(d => d.Published)
+                .HasDefaultValue(false);
+            builder.Property(d => d.Collab)
+                .HasDefaultValue(false);
+            builder.Property(d => d.Private)
+                .HasDefaultValue(false);
         }
     }
 }

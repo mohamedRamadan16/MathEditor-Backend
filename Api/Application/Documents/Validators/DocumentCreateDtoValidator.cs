@@ -16,7 +16,20 @@ namespace Api.Application.Documents.Validators
             RuleFor(x => x.InitialRevision)
                 .NotNull().WithMessage("InitialRevision is required.");
             RuleFor(x => x.InitialRevision.Data)
-                .NotEmpty().WithMessage("Initial revision data is required.");
+                .NotNull().WithMessage("Initial revision data is required.")
+                .Must(ValidateLexicalState).WithMessage("Invalid initial revision Lexical state structure.");
+        }
+
+        private bool ValidateLexicalState(Api.Application.Revisions.DTOs.LexicalStateDto lexicalState)
+        {
+            if (lexicalState?.Root == null)
+                return false;
+
+            if (lexicalState.Root.Children == null)
+                return false;
+
+            // Additional validation can be added here
+            return true;
         }
     }
 }
