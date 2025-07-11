@@ -74,5 +74,25 @@ namespace Api.Infrastructure.Repositories
                 .ToListAsync();
             return (items, totalCount);
         }
+
+        public async Task<(List<Document> Items, int TotalCount)> GetUserDocumentsPagedAsync(
+            Guid userId, int page, int pageSize, bool tracked = false
+        )
+        {
+            IQueryable<Document> query = _context.Documents;
+            query = query.Where(d => d.AuthorId == userId || d.Coauthors.Any(ca => ca.User.Id == userId))
+                .Include(d => d.Author)
+                .Include(d => d.Revisions).ThenInclude(r => r.Author)
+                .Include(d => d.Coauthors).ThenInclude(ca => ca.User);
+            if (!tracked)
+                query = query.AsNoTracking();
+            int totalCount = await query.CountAsync();
+            var items = await query
+                .OrderByDescending(d => d.UpdatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+            return (items, totalCount);
+        }
     }
 }

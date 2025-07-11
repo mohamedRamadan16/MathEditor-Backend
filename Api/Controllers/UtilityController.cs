@@ -141,7 +141,7 @@ namespace Api.Controllers
             return File(ms.ToArray(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document", $"{id}.docx");
         }
 
-        // GET /api/completion
+        
         [HttpGet("completion")]
         public async Task<IActionResult> GetCompletion([FromQuery] string? prompt)
         {

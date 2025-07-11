@@ -14,5 +14,6 @@ namespace Api.Application.Common.Interfaces
         Task<Document> UpdateAsync(Document doc);
         Task DeleteAsync(Guid id);
         Task<(List<Document> Items, int TotalCount)> GetPublishedPagedAsync(int page, int pageSize, bool tracked = false);
+        Task<(List<Document> Items, int TotalCount)> GetUserDocumentsPagedAsync(Guid userId, int page, int pageSize, bool tracked = false);
     }
 }

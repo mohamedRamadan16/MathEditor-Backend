@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Api.Application.Documents.DTOs;
 using Api.Application.Common.Interfaces;
+using Api.Application.Common.Exceptions;
 using AutoMapper;
 using Api.Domain.Entities;
 using System.Collections.Generic;
@@ -26,6 +27,14 @@ namespace Api.Application.Documents.Commands
             var userId = request.UserId;
             if (dto == null || string.IsNullOrWhiteSpace(dto.Name) || string.IsNullOrWhiteSpace(dto.Handle))
                 return null;
+
+            // Check if a document with the same handle already exists
+            var existingDocument = await _repo.FindByHandleAsync(dto.Handle);
+            if (existingDocument != null)
+            {
+                // Handle already exists, throw exception with specific message
+                throw new DuplicateHandleException(dto.Handle);
+            }
 
             // Validate initial revision Lexical state structure
             if (dto.InitialRevision?.Data?.Root == null || dto.InitialRevision.Data.Root.Children == null)

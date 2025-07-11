@@ -4,8 +4,10 @@ using Api.Application.Documents.Queries;
 using Api.Application.Documents.Commands;
 using Api.Application.Documents.DTOs;
 using Api.Application.Common.DTOs;
+using Api.Application.Common.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System;
 
 namespace Api.Controllers
 {
@@ -35,6 +37,35 @@ namespace Api.Controllers
             try
             {
                 var result = await _mediator.Send(new GetAllDocumentsQuery(page, pageSize));
+                var response = new {
+                    items = result.Items,
+                    page = result.Page,
+                    pageSize = result.PageSize,
+                    totalCount = result.TotalCount,
+                    totalPages = result.TotalPages
+                };
+                return Ok(new ApiResponse<object>(response));
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                    errorMessage += " | Inner: " + ex.InnerException.Message;
+                return StatusCode(500, new ApiResponse<object>(null, false, $"Error: {errorMessage}"));
+            }
+        }
+
+        [HttpGet("my-documents")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<object>>> GetMyDocuments([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new ApiResponse<object>(null, false, "Unauthorized"));
+
+            try
+            {
+                var result = await _mediator.Send(new GetUserDocumentsQuery(userId.Value, page, pageSize));
                 var response = new {
                     items = result.Items,
                     page = result.Page,
@@ -102,6 +133,10 @@ namespace Api.Controllers
                 if (result == null)
                     return StatusCode(500, new ApiResponse<DocumentResponseDto>(null, false, "Document creation failed."));
                 return CreatedAtAction(nameof(Get), new { id = result.Id }, new ApiResponse<DocumentResponseDto>(result));
+            }
+            catch (DuplicateHandleException ex)
+            {
+                return Conflict(new ApiResponse<DocumentResponseDto>(null, false, $"Document handle '{ex.Handle}' already exists. Please choose a different handle."));
             }
             catch (Exception ex)
             {
@@ -278,6 +313,33 @@ namespace Api.Controllers
                 if (ex.InnerException != null)
                     errorMessage += " | Inner: " + ex.InnerException.Message;
                 return StatusCode(500, new ApiResponse<object>(null, false, $"Error: {errorMessage}"));
+            }
+        }
+
+        [HttpPut("{id}/published")]
+        [Authorize]
+        public async Task<ActionResult<ApiResponse<DocumentResponseDto>>> TogglePublished(Guid id, [FromBody] TogglePublishedDto request)
+        {
+            var userId = GetCurrentUserId();
+            if (userId == null)
+                return Unauthorized(new ApiResponse<DocumentResponseDto>(null, false, "Unauthorized"));
+            
+            try
+            {
+                var result = await _mediator.Send(new ToggleDocumentPublishedCommand(id, request.Published, userId.Value));
+                if (result == null)
+                {
+                    return NotFound(new ApiResponse<DocumentResponseDto>(null, false, "Document not found"));
+                }
+                
+                return Ok(new ApiResponse<DocumentResponseDto>(result));
+            }
+            catch (Exception ex)
+            {
+                var errorMessage = ex.Message;
+                if (ex.InnerException != null)
+                    errorMessage += " | Inner: " + ex.InnerException.Message;
+                return StatusCode(500, new ApiResponse<DocumentResponseDto>(null, false, $"Error: {errorMessage}"));
             }
         }
     }

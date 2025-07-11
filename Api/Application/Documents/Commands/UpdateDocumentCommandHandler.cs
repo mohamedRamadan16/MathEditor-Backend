@@ -36,12 +36,20 @@ namespace Api.Application.Documents.Commands
             );
             if (doc.AuthorId != userId && !isCoauthor)
                 return null; // Forbidden
-            doc.Name = dto.Name;
-            doc.Handle = dto.Handle;
+            
+            // Only update fields that are provided (not null)
+            if (dto.Name != null)
+                doc.Name = dto.Name;
+            if (dto.Handle != null)
+                doc.Handle = dto.Handle;
+            if (dto.Published.HasValue)
+                doc.Published = dto.Published.Value;
+            if (dto.Collab.HasValue)
+                doc.Collab = dto.Collab.Value;
+            if (dto.Private.HasValue)
+                doc.Private = dto.Private.Value;
+            
             doc.UpdatedAt = DateTime.UtcNow;
-            doc.Published = dto.Published;
-            doc.Collab = dto.Collab;
-            doc.Private = dto.Private;
             await _repo.UpdateAsync(doc);
             var updated = await _repo.FindByIdAsync(doc.Id);
             return updated == null ? null : _mapper.Map<DocumentResponseDto>(updated);
