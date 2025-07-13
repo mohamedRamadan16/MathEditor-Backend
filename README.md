@@ -1,7 +1,7 @@
 # MathEditor - Collaborative Mathematical Document Editor
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/IBastawisi/math-editor/blob/master/LICENSE)
-[![demo](https://img.shields.io/badge/live-demo-blue)](https://matheditor.ml/playground)
+[![demo](https://img.shields.io/badge/live-demo-blue)](https://matheditor.me/playground)
 
 A powerful collaborative mathematical document editor built with Next.js and .NET, featuring real-time editing, mathematical notation support, advanced document management, and user authentication.
 This is a **Porting** from the amazing project : https://github.com/ibastawisi/matheditor
