@@ -1,7 +1,0 @@
-.selected[type='page-break'] {
-  background-color: rgb(95 183 255 / 50%);
-}
-
-.selected[type='page-break']::before {
-  opacity: 1;
-}
